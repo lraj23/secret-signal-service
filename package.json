@@ -1,0 +1,14 @@
+{
+	"name": "secret-signal-service",
+	"version": "0.1.0",
+	"description": "Send encrypted signals to people, try to decipher them!",
+	"main": "app.js",
+	"scripts": {
+		"start": "node --env-file=.env app.js",
+		"test": "echo \"Error: no test specified\" && exit 1"
+	},
+	"license": "MIT",
+	"dependencies": {
+		"@slack/bolt": "^4.2.0"
+	}
+}
