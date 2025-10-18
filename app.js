@@ -226,6 +226,65 @@ app.action("confirm-opt-change", async interaction => {
 	saveState(SSService);
 });
 
+app.command("/ssservice-send-signal", async interaction => {
+	await interaction.ack();
+	const SSService = getSSService();
+	const userId = interaction.payload.user_id;
+	if (userId !== lraj23UserId)
+		return await interaction.respond("Sorry, this feature is still in development");
+	if (!SSService.signalOptedIn.includes(userId))
+		return await interaction.respond("You aren't opted into the Secret Signal Service's Signals! Opt in to \"Signals\" first with /ssservice-edit-opts before trying to send signals!");
+	const signals = SSService.signals.filter(signal => [signal.sender, signal.receiver].includes(userId));
+	await interaction.client.chat.postEphemeral({
+		channel: interaction.command.channel_id,
+		user: userId,
+		blocks: [
+			{
+				type: "input",
+				element: {
+					type: "plain_text_input",
+					action_id: "ignore-signal-text",
+					placeholder: {
+						type: "plain_text",
+						text: "Max 32 characters"
+					}
+				},
+				label: {
+					type: "plain_text",
+					text: "Type the signal you want to send:",
+					emoji: true
+				}
+			},
+			{
+				type: "actions",
+				elements: [
+					{
+						type: "button",
+						text: {
+							type: "plain_text",
+							text: ":x: Cancel",
+							emoji: true
+						},
+						value: "cancel",
+						action_id: "cancel"
+					},
+					{
+						type: "button",
+						text: {
+							type: "plain_text",
+							text: ":white_check_mark: Go!",
+							emoji: true
+						},
+						value: "confirm",
+						action_id: "cancel"
+					}
+				]
+			}
+		],
+		text: "Type the signal you want to send (Max 32 chars):"
+	})
+});
+
 app.message(/secret button/i, async ({ message }) => {
 	await app.client.chat.postEphemeral({
 		channel: message.channel,
