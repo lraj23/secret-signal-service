@@ -11,6 +11,7 @@ const iWillBuryYouAliveInADarkAlleyAndLetTheRatsFeastUponYourCorpse = "i-will-bu
 app.message("", async ({ message }) => {
 	let SSService = getSSService();
 	const userId = message.user;
+	let activeSignal = SSService => SSService.signals.find(signal => signal.receiver === userId);
 	if (!SSService.signalOptedIn.includes(userId)) {
 		if (message.channel === lraj23BotTestingId) await app.client.chat.postEphemeral({
 			channel: lraj23BotTestingId,
@@ -25,14 +26,14 @@ app.message("", async ({ message }) => {
 				}
 			],
 			text: "You aren't opted in to Secret Signal Service! Opt in to \"Signals\" with /ssservice-edit-opts",
-			thread_ts: ((message.thread_ts == message.ts) ? undefined : message.thread_ts)
+			thread_ts: ((message.thread_ts == message.ts) ? null : message.thread_ts)
 		});
 		return;
 	}
 	if (message.text.toLowerCase().includes("secret button"))
-		return await app.client.reactions.add({
+		await app.client.reactions.add({
 			channel: message.channel,
-			name: mainEmojis[0],
+			name: "brilliant-move",
 			timestamp: message.ts
 		});
 	if (message.ts - SSService.apiRequests[userId] < 1) {
@@ -42,6 +43,16 @@ app.message("", async ({ message }) => {
 			timestamp: message.ts
 		});
 	} else SSService.apiRequests[userId] = message.ts;
+	if (activeSignal(SSService)) {
+		await app.client.reactions.add({
+			channel: message.channel,
+			name: (activeSignal(SSService).signal[activeSignal(SSService).sent] || iWillBuryYouAliveInADarkAlleyAndLetTheRatsFeastUponYourCorpse),
+			timestamp: message.ts
+		});
+		console.log(activeSignal(SSService).sent, activeSignal(SSService).signal.length);
+		if (activeSignal(SSService).sent >= activeSignal(SSService).signal.length) SSService.signals.splice(SSService.signals.indexOf(activeSignal(SSService)), 1);
+		else activeSignal(SSService).sent++;
+	}
 	// const pastMessages = (await app.client.conversations.history({
 	// 	token: process.env.CEMOJIS_BOT_TOKEN,
 	// 	channel: message.channel,
