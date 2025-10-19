@@ -308,8 +308,6 @@ app.command("/ssservice-guess-signal", async interaction => {
 	await interaction.ack();
 	const SSService = getSSService();
 	const userId = interaction.payload.user_id;
-	if (userId !== lraj23UserId)
-		return await interaction.respond("This feature is still in development...");
 	if (!SSService.signalOptedIn.includes(userId))
 		return await interaction.respond("You aren't opted into the Secret Signal Service's Signals! Opt in to \"Signals\" first with /ssservice-edit-opts before trying to send signals!");
 	if (!receivingSignal(userId, SSService))
