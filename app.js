@@ -74,9 +74,7 @@ app.command("/ssservice-edit-opts", async interaction => {
 		// explain: "EVERYTHING! :magical-" + mainEmojis[1] + ":"
 	});
 	const currentOpted = (SSService.signalOptedIn.includes(userId) ? "signal" : "none");
-	await interaction.client.chat.postEphemeral({
-		channel: interaction.command.channel_id,
-		user: userId,
+	await interaction.respond({
 		text: "Choose which type of opt-in you want to have:",
 		blocks: [
 			{
@@ -174,9 +172,7 @@ app.command("/ssservice-send-signal", async interaction => {
 		return await interaction.respond("You aren't opted into the Secret Signal Service's Signals! Opt in to \"Signals\" first with /ssservice-edit-opts before trying to send signals!");
 	if (isCommunicating(userId, SSService))
 		return await interaction.respond("You can't send another signal until your first signal completes. If you sent someone a signal, wait for them to guess or for the signal to expire. If someone sent you a signal, try running /ssservice-guess-signal to guess what signal they're sending you.");
-	await interaction.client.chat.postEphemeral({
-		channel: interaction.command.channel_id,
-		user: userId,
+	await interaction.respond({
 		blocks: [
 			{
 				type: "section",
@@ -317,9 +313,7 @@ app.command("/ssservice-guess-signal", async interaction => {
 	if (!receivingSignal(userId, SSService))
 		return await interaction.respond("You can't guess the signal if you aren't receiving one! Try just not using this command until someone sends you a signal.");
 	const signal = receivingSignal(userId, SSService);
-	await interaction.client.chat.postEphemeral({
-		channel: interaction.command.channel_id,
-		user: userId,
+	await interaction.respond({
 		blocks: [
 			{
 				type: "input",
