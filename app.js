@@ -304,7 +304,7 @@ app.command("/ssservice-send-signal", async interaction => {
 			}
 		],
 		text: "Type the signal you want to send (Max 32 chars):"
-	})
+	});
 });
 
 app.action("confirm", async interaction => {
@@ -365,6 +365,119 @@ app.action("confirm", async interaction => {
 		channel: receiver,
 		text: "<@" + userId + "> has sent you a signal that is " + signalMsg.length + " characters long. Send messages in any channel with this bot to begin to understand the signal. Guess the signal with <a command that doesn't exist yet>"
 	});
+	saveState(SSService);
+});
+
+app.command("/ssservice-guess-signal", async interaction => {
+	await interaction.ack();
+	const SSService = getSSService();
+	const userId = interaction.payload.user_id;
+	if (userId !== lraj23UserId)
+		return await interaction.respond("This feature is still in development...");
+	if (!SSService.signalOptedIn.includes(userId))
+		return await interaction.respond("You aren't opted into the Secret Signal Service's Signals! Opt in to \"Signals\" first with /ssservice-edit-opts before trying to send signals!");
+	if (!receivingSignal(userId, SSService))
+		return await interaction.respond("You can't guess the signal if you aren't receiving one! Try just not using this command until someone sends you a signal.");
+	const signal = receivingSignal(userId, SSService);
+	await interaction.client.chat.postEphemeral({
+		channel: interaction.command.channel_id,
+		user: userId,
+		blocks: [
+			{
+				type: "input",
+				element: {
+					type: "plain_text_input",
+					action_id: "ignore-guess-text",
+					placeholder: {
+						type: "plain_text",
+						text: "Hint: length is " + signal.signal.length + " characters"
+					}
+				},
+				label: {
+					type: "plain_text",
+					text: "Guess the signal sent to you by <@" + signal.sender + ">",
+					emoji: true
+				}
+			},
+			{
+				type: "actions",
+				elements: [
+					{
+						type: "button",
+						text: {
+							type: "plain_text",
+							text: ":x: Cancel",
+							emoji: true
+						},
+						value: "cancel",
+						action_id: "cancel"
+					},
+					{
+						type: "button",
+						text: {
+							type: "plain_text",
+							text: ":white_check_mark: Go!",
+							emoji: true
+						},
+						value: "confirm",
+						action_id: "confirm-guess-signal"
+					}
+				]
+			}
+		],
+		text: "Guess the signal sent to you by <@" + signal.sender + "> (Hint: it's " + signal.signal.length + " chars long):"
+	});
+});
+
+app.action("confirm-guess-signal", async interaction => {
+	await interaction.ack();
+	let SSService = getSSService();
+	const userId = interaction.body.user.id;
+	const channelId = interaction.body.channel.id;
+	const givenInfo = interaction.body.state.values;
+	const signal = receivingSignal(userId, SSService);
+	console.log(givenInfo);
+	let guess = Object.entries(givenInfo).find(info => info[1]["ignore-guess-text"])[1]["ignore-guess-text"].value;
+	const warn = msg => interaction.client.chat.postEphemeral({
+		channel: channelId,
+		user: userId,
+		blocks: [
+			{
+				type: "section",
+				text: {
+					type: "mrkdwn",
+					text: msg
+				},
+				accessory: {
+					type: "button",
+					text: {
+						type: "plain_text",
+						text: "Close"
+					},
+					action_id: "cancel"
+				}
+			}
+		],
+		text: msg
+	});
+
+	if (guess === null)
+		return await warn("Type a guess!");
+
+	if (guess.length !== signal.signal.length)
+		return await warn("The signal is exactly " + signal.signal.length + " characters long, while your guess is " + guess.length + " characters. Fix that!");
+
+	const isCorrect = guess === signal.signal;
+	if (isCorrect) {
+		SSService.signals.splice(SSService.signals.indexOf(signal), 1);
+		await interaction.respond("You got the signal right!!!");
+		await interaction.client.chat.postMessage({
+			channel: signal.sender,
+			text: "<@" + userId + "> has guessed your signal correctly!"
+		});
+	} else {
+		await interaction.respond("That's wrong...");
+	}
 	saveState(SSService);
 });
 
