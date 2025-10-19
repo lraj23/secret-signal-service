@@ -275,6 +275,9 @@ app.action("confirm", async interaction => {
 	if (receiver === null)
 		return await warn("Choose someone to send a signal to!");
 
+	if (receiver === userId)
+		return await warn("Sorry, you can no longer send signals to yourself...");
+
 	if (!SSService.signalOptedIn.includes(receiver))
 		return await warn("<@" + receiver + "> is not opted in. Try someone else or tell them to opt in to \"Signals\" with /ssservice-edit-opts");
 
