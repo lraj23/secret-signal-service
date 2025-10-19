@@ -38,13 +38,6 @@ app.message("", async ({ message }) => {
 			name: "brilliant-move",
 			timestamp: message.ts
 		});
-	// if (message.ts - SSService.apiRequests[userId] < 1) {
-	// 	await app.client.reactions.add({
-	// 		channel: message.channel,
-	// 		name: "you-sent-a-message-too-fast-so-no-ai-request-to-avoid-rate-limit",
-	// 		timestamp: message.ts
-	// 	});
-	// } else SSService.apiRequests[userId] = message.ts;
 	if (receivingSignal(userId, SSService)) {
 		const signal = receivingSignal(userId, SSService);
 		try {
@@ -60,73 +53,6 @@ app.message("", async ({ message }) => {
 		if (signal.sent > signal.signal.length) SSService.signals.splice(SSService.signals.indexOf(signal), 1);
 		else signal.sent++;
 	}
-	// const pastMessages = (await app.client.conversations.history({
-	// 	token: process.env.CEMOJIS_BOT_TOKEN,
-	// 	channel: message.channel,
-	// 	latest: message.ts * 1000,
-	// 	limit: 30
-	// })).messages.reverse();
-	// console.log(message.text);
-	// const response = await fetch(aiApiUrl, {
-	// 	method: "POST",
-	// 	headers,
-	// 	body: JSON.stringify({
-	// 		model: "openai/gpt-oss-120b",
-	// 		messages: [
-	// 			{
-	// 				role: "system",
-	// 				content: systemMessage + new Date(Date.now()).toString() + ":\n" + pastMessages.map(msg => "User " + msg.user + " said (on " + new Date(1000 * msg.ts).toString() + "): " + msg.text).join("\n")
-	// 			},
-	// 			{
-	// 				role: "user",
-	// 				content: message.text
-	// 			}
-	// 		]
-	// 	})
-	// });
-	// const data = await response.json();
-	// if (data.error) if (data.error.message) if (data.error.message.split(":")[0] === "Rate limit exceeded") {
-	// 	await app.client.reactions.add({
-	// 		channel: message.channel,
-	// 		name: "sorry-my-ai-api-got-rate-limited",
-	// 		timestamp: message.ts
-	// 	});
-	// 	if (SSService.explanationOptedIn.includes(userId))
-	// 		await app.client.chat.postEphemeral({
-	// 			channel: message.channel,
-	// 			user: userId,
-	// 			text: "Your message was not reacted to because my AI API got rate limited. :sorry-my-ai-api-got-rate-limited:",
-	// 			thread_ts: ((message.thread_ts == message.ts) ? undefined : message.thread_ts)
-	// 		});
-	// 	return;
-	// }
-	// console.log(data.choices[0].message);
-	// let reactions = data.choices[0].message.content.split(" ");
-	// reactions = reactions.filter((reaction, i) => reactions.indexOf(reaction) === i);
-	// reactions.forEach(async reaction => {
-	// 	if (![...mainEmojis, ...sideEmojis].includes(reaction)) return;
-	// 	const rand = Math.random();
-	// 	if (rand < chances[reaction] * magicFactor) {
-	// 		let unusedIds = new Array(SSService.powerUps.length).fill(null).map((val, i) => i);
-	// 		for (let i = 0; i < SSService.powerUps.length; i++) {
-	// 			if (SSService.powerUps.map(power => power.id).includes(i)) unusedIds.splice(unusedIds.indexOf(i), 1);
-	// 			else break;
-	// 		}
-	// 		SSService.powerUps.push({
-	// 			id: unusedIds[0],
-	// 			owner: userId,
-	// 			type: reaction,
-	// 			active: false
-	// 		});
-	// 		reaction = "magical-" + reaction;
-	// 	}
-	// 	console.log(rand, reaction);
-	// 	await app.client.reactions.add({
-	// 		channel: message.channel,
-	// 		name: reaction,
-	// 		timestamp: message.ts
-	// 	});
-	// });
 	saveState(SSService);
 });
 
