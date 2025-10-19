@@ -481,6 +481,8 @@ app.action("confirm-guess-signal", async interaction => {
 	saveState(SSService);
 });
 
+app.command("/ssservice-leaderboard", async interaction => [await interaction.ack(), await interaction.respond("This is the Secret Signal Service leaderboard! :secret-signal-service:\n\n" + Object.entries(getSSService().coins).sort((a, b) => b[1] - a[1]).map(user => "<@" + user[0] + "> has " + user[1] + " :secret-signal-service:!").join("\n"))]);
+
 app.message(/secret button/i, async ({ message }) => {
 	await app.client.chat.postEphemeral({
 		channel: message.channel,
