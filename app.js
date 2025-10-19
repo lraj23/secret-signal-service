@@ -7,11 +7,13 @@ const headers = {
 const lraj23BotTestingId = "C09GR27104V";
 const lraj23UserId = "U0947SL6AKB";
 const iWillBuryYouAliveInADarkAlleyAndLetTheRatsFeastUponYourCorpse = "i-will-bury-you-alive-in-a-dark-alley-and-let-the-rats-feast-upon-your-corpse";
+const isCommunicating = (userId, SSService) => !SSService.signals.map(signal => [signal.sender, signal.receiver]).flat().reduce((product, id) => product * (+!(id === userId)), 1);
+const receivingSignal = (userId, SSService) => SSService.signals.find(signal => signal.receiver === userId);
+const communicationIsIn = (userId, SSService) => SSService.signals.find(signal => [signal.sender, signal.receiver].includes(userId));
 
 app.message("", async ({ message }) => {
 	let SSService = getSSService();
 	const userId = message.user;
-	let activeSignal = SSService => SSService.signals.find(signal => signal.receiver === userId);
 	if (!SSService.signalOptedIn.includes(userId)) {
 		if (message.channel === lraj23BotTestingId) await app.client.chat.postEphemeral({
 			channel: lraj23BotTestingId,
@@ -36,22 +38,27 @@ app.message("", async ({ message }) => {
 			name: "brilliant-move",
 			timestamp: message.ts
 		});
-	if (message.ts - SSService.apiRequests[userId] < 1) {
-		await app.client.reactions.add({
-			channel: message.channel,
-			name: "you-sent-a-message-too-fast-so-no-ai-request-to-avoid-rate-limit",
-			timestamp: message.ts
-		});
-	} else SSService.apiRequests[userId] = message.ts;
-	if (activeSignal(SSService)) {
-		await app.client.reactions.add({
-			channel: message.channel,
-			name: (activeSignal(SSService).signal[activeSignal(SSService).sent] || iWillBuryYouAliveInADarkAlleyAndLetTheRatsFeastUponYourCorpse),
-			timestamp: message.ts
-		});
-		console.log(activeSignal(SSService).sent, activeSignal(SSService).signal.length);
-		if (activeSignal(SSService).sent >= activeSignal(SSService).signal.length) SSService.signals.splice(SSService.signals.indexOf(activeSignal(SSService)), 1);
-		else activeSignal(SSService).sent++;
+	// if (message.ts - SSService.apiRequests[userId] < 1) {
+	// 	await app.client.reactions.add({
+	// 		channel: message.channel,
+	// 		name: "you-sent-a-message-too-fast-so-no-ai-request-to-avoid-rate-limit",
+	// 		timestamp: message.ts
+	// 	});
+	// } else SSService.apiRequests[userId] = message.ts;
+	if (receivingSignal(userId, SSService)) {
+		const signal = receivingSignal(userId, SSService);
+		try {
+			await app.client.reactions.add({
+				channel: message.channel,
+				name: signal.signal[signal.sent] || "end-of-signal-also-" + iWillBuryYouAliveInADarkAlleyAndLetTheRatsFeastUponYourCorpse,
+				timestamp: message.ts
+			});
+		} catch (e) {
+			console.error(e);
+		}
+		console.log(signal.sent, signal.signal.length);
+		if (signal.sent > signal.signal.length) SSService.signals.splice(SSService.signals.indexOf(signal), 1);
+		else signal.sent++;
 	}
 	// const pastMessages = (await app.client.conversations.history({
 	// 	token: process.env.CEMOJIS_BOT_TOKEN,
@@ -234,11 +241,28 @@ app.command("/ssservice-send-signal", async interaction => {
 		return await interaction.respond("Sorry, this feature is still in development");
 	if (!SSService.signalOptedIn.includes(userId))
 		return await interaction.respond("You aren't opted into the Secret Signal Service's Signals! Opt in to \"Signals\" first with /ssservice-edit-opts before trying to send signals!");
-	const signals = SSService.signals.filter(signal => [signal.sender, signal.receiver].includes(userId));
+	if (isCommunicating(userId, SSService))
+		return await interaction.respond("You can't send another signal until your first signal completes. Ping or DM <@" + lraj23UserId + "> and ask him to manually end your signal for now.");
 	await interaction.client.chat.postEphemeral({
 		channel: interaction.command.channel_id,
 		user: userId,
 		blocks: [
+			{
+				type: "section",
+				text: {
+					type: "mrkdwn",
+					text: "Choose someone to send a signal to:"
+				},
+				accessory: {
+					type: "users_select",
+					placeholder: {
+						type: "plain_text",
+						text: "Required",
+						emoji: true
+					},
+					action_id: "ignore-signal-receiver"
+				}
+			},
 			{
 				type: "input",
 				element: {
@@ -276,13 +300,74 @@ app.command("/ssservice-send-signal", async interaction => {
 							emoji: true
 						},
 						value: "confirm",
-						action_id: "cancel"
+						action_id: "confirm"
 					}
 				]
 			}
 		],
 		text: "Type the signal you want to send (Max 32 chars):"
 	})
+});
+
+app.action("confirm", async interaction => {
+	await interaction.ack();
+	let SSService = getSSService();
+	const userId = interaction.body.user.id;
+	const channelId = interaction.body.channel.id;
+	const givenInfo = interaction.body.state.values;
+	console.log(givenInfo);
+	let signalMsg = Object.entries(givenInfo).find(info => info[1]["ignore-signal-text"])[1]["ignore-signal-text"].value;
+	let receiver = Object.entries(givenInfo).find(info => info[1]["ignore-signal-receiver"])[1]["ignore-signal-receiver"].selected_user;
+	const warn = msg => interaction.client.chat.postEphemeral({
+		channel: channelId,
+		user: userId,
+		blocks: [
+			{
+				type: "section",
+				text: {
+					type: "mrkdwn",
+					text: msg
+				},
+				accessory: {
+					type: "button",
+					text: {
+						type: "plain_text",
+						text: "Close"
+					},
+					action_id: "cancel"
+				}
+			}
+		],
+		text: msg
+	});
+
+	if (receiver === null)
+		return await warn("Choose someone to send a signal to!");
+
+	if (!SSService.signalOptedIn.includes(receiver))
+		return await warn("<@" + receiver + "> is not opted in. Try someone else or tell them to opt in to \"Signals\" with /ssservice-edit-opts");
+
+	if (signalMsg === null)
+		return await warn("Type a signal!");
+
+	if (signalMsg.length > 32)
+		return await warn("The signal must be up to 32 characters long!");
+
+	if (isCommunicating(receiver, SSService))
+		return await warn("You can't send a signal to <@" + receiver + "> right now because they are currently communicating with someone else. Ping or DM <@" + lraj23UserId + "> and ask him to manually end your signal for now.");
+
+	SSService.signals.push({
+		sender: userId,
+		receiver,
+		signal: signalMsg,
+		sent: 0
+	});
+	await interaction.respond("<@" + userId + "> sent a signal to <@" + receiver + "> with this message: \n" + signalMsg);
+	await interaction.client.chat.postMessage({
+		channel: receiver,
+		text: "<@" + userId + "> has sent you a signal that is " + signalMsg.length + " characters long. Send messages in any channel with this bot to begin to understand the signal. Guess the signal with <a command that doesn't exist yet>"
+	});
+	saveState(SSService);
 });
 
 app.message(/secret button/i, async ({ message }) => {
