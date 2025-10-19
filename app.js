@@ -10,6 +10,7 @@ const iWillBuryYouAliveInADarkAlleyAndLetTheRatsFeastUponYourCorpse = "i-will-bu
 const isCommunicating = (userId, SSService) => !SSService.signals.map(signal => [signal.sender, signal.receiver]).flat().reduce((product, id) => product * (+!(id === userId)), 1);
 const receivingSignal = (userId, SSService) => SSService.signals.find(signal => signal.receiver === userId);
 const communicationIsIn = (userId, SSService) => SSService.signals.find(signal => [signal.sender, signal.receiver].includes(userId));
+const roundToTwo = n => Math.round((n + Number.EPSILON) * 100) / 100;
 
 app.message("", async ({ message }) => {
 	let SSService = getSSService();
@@ -40,6 +41,8 @@ app.message("", async ({ message }) => {
 		});
 	if (receivingSignal(userId, SSService)) {
 		const signal = receivingSignal(userId, SSService);
+		signal.senderCoins = roundToTwo(signal.senderCoins - 2 / 3);
+		signal.receiverCoins = signal.receiverCoins - 1;
 		try {
 			await app.client.reactions.add({
 				channel: message.channel,
@@ -50,7 +53,10 @@ app.message("", async ({ message }) => {
 			console.error(e);
 		}
 		console.log(signal.sent, signal.signal.length);
-		if (signal.sent > signal.signal.length) SSService.signals.splice(SSService.signals.indexOf(signal), 1);
+		if (signal.sent > signal.signal.length) {
+			SSService.coins[signal.receiver] -= 8;
+			SSService.signals.splice(SSService.signals.indexOf(signal), 1);
+		}
 		else signal.sent++;
 	}
 	saveState(SSService);
@@ -280,16 +286,20 @@ app.action("confirm", async interaction => {
 	if (isCommunicating(receiver, SSService))
 		return await warn("You can't send a signal to <@" + receiver + "> right now because they are currently communicating with someone else. Ping or DM <@" + lraj23UserId + "> and ask him to manually end your signal for now.");
 
+	const senderCoins = roundToTwo(signalMsg.length * 2 / 3);
+	const receiverCoins = signalMsg.length;
 	SSService.signals.push({
 		sender: userId,
 		receiver,
 		signal: signalMsg,
-		sent: 0
+		sent: 0,
+		senderCoins,
+		receiverCoins
 	});
-	await interaction.respond("<@" + userId + "> sent a signal to <@" + receiver + "> with this message: \n" + signalMsg);
+	await interaction.respond("<@" + userId + "> sent a signal to <@" + receiver + "> (worth " + senderCoins + " to you and " + receiverCoins + " to them) with this message: \n" + signalMsg);
 	await interaction.client.chat.postMessage({
 		channel: receiver,
-		text: "<@" + userId + "> has sent you a signal that is " + signalMsg.length + " characters long. Send messages in any channel with this bot to begin to understand the signal. Guess the signal with <a command that doesn't exist yet>"
+		text: "<@" + userId + "> has sent you a signal that is " + signalMsg.length + " characters long. Send messages in any channel with this bot to begin to understand the signal. Guess the signal with /ssservice-guess-signal"
 	});
 	saveState(SSService);
 });
@@ -395,6 +405,8 @@ app.action("confirm-guess-signal", async interaction => {
 
 	const isCorrect = guess === signal.signal;
 	if (isCorrect) {
+		SSService.coins[userId] = (SSService.coins[userId] || 0) + signal.receiverCoins;
+		SSService.coins[signal.sender] = (SSService.coins[signal.sender] || 0) + signal.senderCoins;
 		SSService.signals.splice(SSService.signals.indexOf(signal), 1);
 		await interaction.respond("You got the signal right!!!");
 		await interaction.client.chat.postMessage({
@@ -402,12 +414,13 @@ app.action("confirm-guess-signal", async interaction => {
 			text: "<@" + userId + "> has guessed your signal correctly!"
 		});
 	} else {
-		await interaction.respond("That's wrong...");
+		signal.receiverCoins = roundToTwo((signal.receiverCoins - 4) * 0.67);
+		await interaction.respond("That's wrong... Your guess's worth just dropped by " + roundToTwo(4 + signal.receiverCoins * 33 / 67) + " :siege-coin:!");
 	}
 	saveState(SSService);
 });
 
-app.command("/ssservice-leaderboard", async interaction => [await interaction.ack(), await interaction.respond("This is the Secret Signal Service leaderboard! :secret-signal-service:\n\n" + Object.entries(getSSService().coins).sort((a, b) => b[1] - a[1]).map(user => "<@" + user[0] + "> has " + user[1] + " :secret-signal-service:!").join("\n"))]);
+app.command("/ssservice-leaderboard", async interaction => [await interaction.ack(), await interaction.respond("This is the Secret Signal Service leaderboard! :siege-coin:\n\n" + Object.entries(getSSService().coins).sort((a, b) => b[1] - a[1]).map(user => "<@" + user[0] + "> has " + roundToTwo(user[1]) + " :siege-coin:!").join("\n"))]);
 
 app.message(/secret button/i, async ({ message }) => {
 	await app.client.chat.postEphemeral({
