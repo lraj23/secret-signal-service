@@ -172,7 +172,7 @@ app.command("/ssservice-send-signal", async interaction => {
 	if (!SSService.signalOptedIn.includes(userId))
 		return await interaction.respond("You aren't opted into the Secret Signal Service's Signals! Opt in to \"Signals\" first with /ssservice-edit-opts before trying to send signals!");
 	if (isCommunicating(userId, SSService))
-		return await interaction.respond("You can't send another signal until your first signal completes. Ping or DM <@" + lraj23UserId + "> and ask him to manually end your signal for now.");
+		return await interaction.respond("You can't send another signal until your first signal completes. If you sent someone a signal, wait for them to guess or for the signal to expire. If someone sent you a signal, try running /ssservice-guess-signal to guess what signal they're sending you.");
 	await interaction.client.chat.postEphemeral({
 		channel: interaction.command.channel_id,
 		user: userId,
@@ -419,6 +419,19 @@ app.action("confirm-guess-signal", async interaction => {
 });
 
 app.command("/ssservice-leaderboard", async interaction => [await interaction.ack(), await interaction.respond("This is the Secret Signal Service leaderboard! :siege-coin:\n\n" + Object.entries(getSSService().coins).sort((a, b) => b[1] - a[1]).map(user => "<@" + user[0] + "> has " + roundToTwo(user[1]) + " :siege-coin:!").join("\n"))]);
+
+app.command("/ssservice-signal-value", async interaction => {
+	await interaction.ack();
+	const SSService = getSSService();
+	const userId = interaction.payload.user_id;
+	if (!isCommunicating(userId, SSService))
+		return await interaction.respond("You can't check the value of your current communication if you're not in one! Try running /ssservice-send-signal to send a signal to someone, then check out the value of your signal.");
+	const signal = receivingSignal(userId, SSService);
+	if (signal)
+		await interaction.respond("You were sent a signal by <@" + signal.sender + "> with a length of " + signal.signal.length + " characters. It was originally worth " + signal.signal.length + " :siege-coin: for you. Now, it is worth " + signal.receiverCoins + " :siege-coin:!");
+	else
+		await interaction.respond("You sent a signal to <@" + signal.receiver + "> with a length of " + signal.signal.length + " characters. It was originally worth " + roundToTwo(signal.signal.length * 2 / 3) + " :siege-coin: for you. Now, it is worth " + signal.senderCoins + " :siege-coin:! Also, the message you signaled was:\n" + signal.signal);
+});
 
 app.message(/secret button/i, async ({ message }) => {
 	await app.client.chat.postEphemeral({
