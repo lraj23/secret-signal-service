@@ -424,12 +424,106 @@ app.command("/ssservice-signal-value", async interaction => {
 	const userId = interaction.payload.user_id;
 	if (!isCommunicating(userId, SSService))
 		return await interaction.respond("You can't check the value of your current communication if you're not in one! Try running /ssservice-send-signal to send a signal to someone, then check out the value of your signal.");
-	const signal = receivingSignal(userId, SSService);
-	if (signal)
-		await interaction.respond("You were sent a signal by <@" + signal.sender + "> with a length of " + signal.signal.length + " characters. It was originally worth " + signal.signal.length + " :siege-coin: for you. Now, it is worth " + signal.receiverCoins + " :siege-coin:!");
-	else
+	const signal = communicationIsIn(userId, SSService);
+	if (signal.sender === userId)
 		await interaction.respond("You sent a signal to <@" + signal.receiver + "> with a length of " + signal.signal.length + " characters. It was originally worth " + roundToTwo(signal.signal.length * 2 / 3) + " :siege-coin: for you. Now, it is worth " + signal.senderCoins + " :siege-coin:! Also, the message you signaled was:\n" + signal.signal);
+	else
+		await interaction.respond("You were sent a signal by <@" + signal.sender + "> with a length of " + signal.signal.length + " characters. It was originally worth " + signal.signal.length + " :siege-coin: for you. Now, it is worth " + signal.receiverCoins + " :siege-coin:!");
 });
+
+app.command("/ssservice-shop", async interaction => {
+	await interaction.ack();
+	const SSService = getSSService();
+	const userId = interaction.payload.user_id;
+	if (userId !== lraj23UserId)
+		return await interaction.respond("Sorry, this is still in development...");
+	if (!SSService.signalOptedIn.includes(userId))
+		return await interaction.respond("You can't access the shop if you aren't opted in! Opt in to \"Signals\" first with /ssservice-edit-opts. (This doesn't mean you don't have coins, you just aren't allowed to spend them).");
+	const shopItems = Object.entries({
+		"boost-2x-1hr": ["Boost #1 test - 2x for 1hr", 12],
+		"boost-1.5x-1.5hr": ["Boost #2 test - 1.5x for 1.5hr", 14],
+		"boost-3x-0.75hr": ["Boost #3 test - 3x for 0.75hr", 15],
+		"boost-67x-0.067hr": ["Boost #4 test - 67x for 0.067hr", 27]
+	});
+	await interaction.respond({
+		blocks: [
+			{
+				type: "section",
+				text: {
+					type: "mrkdwn",
+					text: "*Choose what items you want to buy* (you have " + SSService.coins[userId] + " :siege-coin:):"
+				}
+			},
+			{
+				type: "divider"
+			},
+			...(shopItems.map(shopItem => [
+				{
+					type: "section",
+					text: {
+						type: "plain_text",
+						text: shopItem[1][1] + " :siege-coin: - " + shopItem[1][0] + " (0 in cart)"
+					}
+				},
+				{
+					type: "actions",
+					elements: [
+						{
+							type: "button",
+							text: {
+								type: "plain_text",
+								text: ":heavy_plus_sign: Add to cart",
+								emoji: true
+							},
+							value: "increase-to-cart-" + shopItem[0],
+							action_id: "increase-to-cart-" + shopItem[0]
+						}
+					]
+				},
+				{
+					type: "divider"
+				}
+			]).flat()),
+			{
+				type: "section",
+				text: {
+					type: "mrkdwn",
+					text: "Total Cost: 0 :siege-coin:"
+				}
+			},
+			{
+				type: "actions",
+				elements: [
+					{
+						type: "button",
+						text: {
+							type: "plain_text",
+							text: ":x: Cancel",
+							emoji: true
+						},
+						value: "cancel",
+						action_id: "cancel"
+					},
+					{
+						type: "button",
+						text: {
+							type: "plain_text",
+							text: ":moneybag: Buy!",
+							emoji: true
+						},
+						value: "confirm",
+						action_id: "confirm-buy-items"
+					}
+				]
+			}
+		],
+		text: "Choose what items you want to buy:"
+	});
+});
+
+app.action(/^increase-to-cart-.+$/, async ({ ack }) => await ack());
+
+app.action("confirm-buy-items", async ({ ack }) => await ack());
 
 app.command("/ssservice-help", async interaction => [await interaction.ack(), await interaction.respond("This is the Secret Signal Service bot! The point of this is to earn coins and climb the leaderboard. You get these after sending a signal to someone or receiving a signal. Guessing the signal correctly rewards both the sender and receiver with :siege-coin: (unless the receiver guesses wrong too many times). Since this reacts to messages of users in public channels, and <https://hackclub.slack.com/archives/C0188CY57PZ/p1759957641808149|#meta really doesn't like that>, you have to opt IN for it to work. The bot must also be in the channel you are sending messages in.\nFor more information, check out the readme at https://github.com/lraj23/secret-signal-service"), interaction.payload.user_id === lraj23UserId ? await interaction.respond("Test but only for <@" + lraj23UserId + ">. If you aren't him and you see this message, DM him IMMEDIATELY about this!") : null]);
 

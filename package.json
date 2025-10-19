@@ -3,6 +3,7 @@
 	"version": "0.1.0",
 	"description": "Send encrypted signals to people, try to decipher them!",
 	"main": "app.js",
+	"type": "module",
 	"scripts": {
 		"start": "node --env-file=.env app.js",
 		"test": "echo \"Error: no test specified\" && exit 1"
