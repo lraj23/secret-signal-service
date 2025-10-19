@@ -33,6 +33,7 @@ app.message("", async ({ message }) => {
 		});
 		return;
 	}
+	console.log(message.text);
 	if (message.text.toLowerCase().includes("secret button"))
 		await app.client.reactions.add({
 			channel: message.channel,
@@ -432,6 +433,8 @@ app.command("/ssservice-signal-value", async interaction => {
 	else
 		await interaction.respond("You sent a signal to <@" + signal.receiver + "> with a length of " + signal.signal.length + " characters. It was originally worth " + roundToTwo(signal.signal.length * 2 / 3) + " :siege-coin: for you. Now, it is worth " + signal.senderCoins + " :siege-coin:! Also, the message you signaled was:\n" + signal.signal);
 });
+
+app.command("/ssservice-help", async interaction => [await interaction.ack(), await interaction.respond("This is the Secret Signal Service bot! The point of this is to earn coins and climb the leaderboard. You get these after sending a signal to someone or receiving a signal. Guessing the signal correctly rewards both the sender and receiver with :siege-coin: (unless the receiver guesses wrong too many times). Since this reacts to messages of users in public channels, and <https://hackclub.slack.com/archives/C0188CY57PZ/p1759957641808149|#meta really doesn't like that>, you have to opt IN for it to work. The bot must also be in the channel you are sending messages in.\nFor more information, check out the readme at https://github.com/lraj23/secret-signal-service"), interaction.payload.user_id === lraj23UserId ? await interaction.respond("Test but only for <@" + lraj23UserId + ">. If you aren't him and you see this message, DM him IMMEDIATELY about this!") : null]);
 
 app.message(/secret button/i, async ({ message }) => {
 	await app.client.chat.postEphemeral({
