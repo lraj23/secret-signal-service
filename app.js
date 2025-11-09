@@ -1,9 +1,6 @@
 import app from "./client.js";
 import { getSSService, logInteraction, saveState } from "./datahandler.js";
-const aiApiUrl = "https://ai.hackclub.com/chat/completions";
-const headers = {
-	"Content-Type": "application/json"
-};
+import { block } from "./blocks.js";
 const lraj23BotTestingId = "C09GR27104V";
 const lraj23UserId = "U0947SL6AKB";
 const iWillBuryYouAliveInADarkAlleyAndLetTheRatsFeastUponYourCorpse = "i-will-bury-you-alive-in-a-dark-alley-and-let-the-rats-feast-upon-your-corpse";
@@ -11,6 +8,7 @@ const isCommunicating = (userId, SSService) => !SSService.signals.map(signal => 
 const receivingSignal = (userId, SSService) => SSService.signals.find(signal => signal.receiver === userId);
 const communicationIsIn = (userId, SSService) => SSService.signals.find(signal => [signal.sender, signal.receiver].includes(userId));
 const roundToTwo = n => Math.round((n + Number.EPSILON) * 100) / 100;
+console.log(block("test"));
 
 app.message("", async ({ message }) => {
 	let SSService = getSSService();
@@ -55,7 +53,7 @@ app.message("", async ({ message }) => {
 		}
 		console.log(signal.sent, signal.signal.length);
 		if (signal.sent > signal.signal.length) {
-			SSService.coins[signal.receiver] -= 8;
+			SSService.coins[signal.receiver] = SSService.coins[signal.receiver] ? SSService.coins[signal.receiver] - 8 : -8;
 			SSService.signals.splice(SSService.signals.indexOf(signal), 1);
 		}
 		else signal.sent++;
