@@ -4,6 +4,8 @@ import { block } from "./blocks.js";
 const lraj23BotTestingId = "C09GR27104V";
 const lraj23UserId = "U0947SL6AKB";
 const iWillBuryYouAliveInADarkAlleyAndLetTheRatsFeastUponYourCorpse = "i-will-bury-you-alive-in-a-dark-alley-and-let-the-rats-feast-upon-your-corpse";
+const gPortfolioDmId = "D09RRHTCG82";
+const commands = {};
 const isCommunicating = (userId, SSService) => !SSService.signals.map(signal => [signal.sender, signal.receiver]).flat().reduce((product, id) => product * (+!(id === userId)), 1);
 const receivingSignal = (userId, SSService) => SSService.signals.find(signal => signal.receiver === userId);
 const communicationIsIn = (userId, SSService) => SSService.signals.find(signal => [signal.sender, signal.receiver].includes(userId));
@@ -11,6 +13,27 @@ const roundToTwo = n => Math.round((n + Number.EPSILON) * 100) / 100;
 console.log(block("test"));
 
 app.message("", async ({ message }) => {
+	if ((message.channel_type === "im") && (message.channel === gPortfolioDmId)) {
+		const info = message.text.split(";");
+		console.log(info[0], commands[info[0]]);
+		return commands[info[0]]({
+			ack: _ => _,
+			body: {
+				user_id: info[1],
+				channel_id: info[2]
+			},
+			respond: (response) => {
+				if (typeof response === "string") return app.client.chat.postEphemeral({
+					channel: info[2],
+					user: info[1],
+					text: response
+				});
+				if (!response.channel) response.channel = info[2];
+				if (!response.user) response.user = info[1];
+				app.client.chat.postEphemeral(response);
+			}
+		});
+	}
 	let SSService = getSSService();
 	const userId = message.user;
 	if (!SSService.signalOptedIn.includes(userId)) {
@@ -61,9 +84,9 @@ app.message("", async ({ message }) => {
 	saveState(SSService);
 });
 
-app.command("/ssservice-edit-opts", async interaction => {
+commands["edit-opts"] = async interaction => {
 	await interaction.ack();
-	const userId = interaction.payload.user_id;
+	const userId = interaction.body.user_id;
 	let SSService = getSSService();
 	const optInLevels = Object.entries({
 		none: "Nothing",
@@ -134,7 +157,8 @@ app.command("/ssservice-edit-opts", async interaction => {
 			}
 		]
 	});
-});
+};
+app.command("/ssservice-edit-opts", commands["edit-opts"]);
 
 app.action(/^ignore-.+$/, async interaction => await interaction.ack());
 
@@ -162,15 +186,16 @@ app.action("confirm-opt-change", async interaction => {
 	saveState(SSService);
 });
 
-app.command("/ssservice-send-signal", async interaction => {
+commands["send-signal"] = async interaction => {
 	await interaction.ack();
 	const SSService = getSSService();
-	const userId = interaction.payload.user_id;
+	const userId = interaction.body.user_id;
 	if (!SSService.signalOptedIn.includes(userId))
 		return await interaction.respond("You aren't opted into the Secret Signal Service's Signals! Opt in to \"Signals\" first with /ssservice-edit-opts before trying to send signals!");
 	if (isCommunicating(userId, SSService))
 		return await interaction.respond("You can't send another signal until your first signal completes. If you sent someone a signal, wait for them to guess or for the signal to expire. If someone sent you a signal, try running /ssservice-guess-signal to guess what signal they're sending you.");
 	await interaction.respond({
+		text: "Type the signal you want to send (Max 32 chars):",
 		blocks: [
 			{
 				type: "section",
@@ -229,10 +254,10 @@ app.command("/ssservice-send-signal", async interaction => {
 					}
 				]
 			}
-		],
-		text: "Type the signal you want to send (Max 32 chars):"
+		]
 	});
-});
+};
+app.command("/ssservice-send-signal", commands["send-signal"]);
 
 app.action("confirm", async interaction => {
 	await interaction.ack();
@@ -302,16 +327,17 @@ app.action("confirm", async interaction => {
 	saveState(SSService);
 });
 
-app.command("/ssservice-guess-signal", async interaction => {
+commands["guess-signal"] = async interaction => {
 	await interaction.ack();
 	const SSService = getSSService();
-	const userId = interaction.payload.user_id;
+	const userId = interaction.body.user_id;
 	if (!SSService.signalOptedIn.includes(userId))
 		return await interaction.respond("You aren't opted into the Secret Signal Service's Signals! Opt in to \"Signals\" first with /ssservice-edit-opts before trying to send signals!");
 	if (!receivingSignal(userId, SSService))
 		return await interaction.respond("You can't guess the signal if you aren't receiving one! Try just not using this command until someone sends you a signal.");
 	const signal = receivingSignal(userId, SSService);
 	await interaction.respond({
+		text: "Guess the signal sent to you by <@" + signal.sender + "> (Hint: it's " + signal.signal.length + " chars long):",
 		blocks: [
 			{
 				type: "input",
@@ -354,10 +380,10 @@ app.command("/ssservice-guess-signal", async interaction => {
 					}
 				]
 			}
-		],
-		text: "Guess the signal sent to you by <@" + signal.sender + "> (Hint: it's " + signal.signal.length + " chars long):"
+		]
 	});
-});
+};
+app.command("/ssservice-guess-signal", commands["guess-signal"]);
 
 app.action("confirm-guess-signal", async interaction => {
 	await interaction.ack();
@@ -414,12 +440,13 @@ app.action("confirm-guess-signal", async interaction => {
 	saveState(SSService);
 });
 
-app.command("/ssservice-leaderboard", async interaction => [await interaction.ack(), await interaction.respond("This is the Secret Signal Service leaderboard! :siege-coin:\n\n" + Object.entries(getSSService().coins).sort((a, b) => b[1] - a[1]).map(user => "<@" + user[0] + "> has " + roundToTwo(user[1]) + " :siege-coin:!").join("\n"))]);
+commands.leaderboard = async interaction => [await interaction.ack(), await interaction.respond("This is the Secret Signal Service leaderboard! :siege-coin:\n\n" + Object.entries(getSSService().coins).sort((a, b) => b[1] - a[1]).map(user => "<@" + user[0] + "> has " + roundToTwo(user[1]) + " :siege-coin:!").join("\n"))];
+app.command("/ssservice-leaderboard", commands.leaderboard);
 
-app.command("/ssservice-signal-value", async interaction => {
+commands["signal-value"] = async interaction => {
 	await interaction.ack();
 	const SSService = getSSService();
-	const userId = interaction.payload.user_id;
+	const userId = interaction.body.user_id;
 	if (!isCommunicating(userId, SSService))
 		return await interaction.respond("You can't check the value of your current communication if you're not in one! Try running /ssservice-send-signal to send a signal to someone, then check out the value of your signal.");
 	const signal = communicationIsIn(userId, SSService);
@@ -427,12 +454,13 @@ app.command("/ssservice-signal-value", async interaction => {
 		await interaction.respond("You sent a signal to <@" + signal.receiver + "> with a length of " + signal.signal.length + " characters. It was originally worth " + roundToTwo(signal.signal.length * 2 / 3) + " :siege-coin: for you. Now, it is worth " + signal.senderCoins + " :siege-coin:! Also, the message you signaled was:\n" + signal.signal);
 	else
 		await interaction.respond("You were sent a signal by <@" + signal.sender + "> with a length of " + signal.signal.length + " characters. It was originally worth " + signal.signal.length + " :siege-coin: for you. Now, it is worth " + signal.receiverCoins + " :siege-coin:!");
-});
+};
+app.command("/ssservice-signal-value", commands["signal-value"]);
 
-app.command("/ssservice-shop", async interaction => {
+commands.shop = async interaction => {
 	await interaction.ack();
 	const SSService = getSSService();
-	const userId = interaction.payload.user_id;
+	const userId = interaction.body.user_id;
 	if (userId !== lraj23UserId)
 		return await interaction.respond("Sorry, this is still in development...");
 	if (!SSService.signalOptedIn.includes(userId))
@@ -444,6 +472,7 @@ app.command("/ssservice-shop", async interaction => {
 		"boost-67x-0.067hr": ["Boost #4 test - 67x for 0.067hr", 27]
 	});
 	await interaction.respond({
+		text: "Choose what items you want to buy:",
 		blocks: [
 			{
 				type: "section",
@@ -514,16 +543,17 @@ app.command("/ssservice-shop", async interaction => {
 					}
 				]
 			}
-		],
-		text: "Choose what items you want to buy:"
+		]
 	});
-});
+};
+app.command("/ssservice-shop", commands.shop);
 
 app.action(/^increase-to-cart-.+$/, async ({ ack }) => await ack());
 
 app.action("confirm-buy-items", async ({ ack }) => await ack());
 
-app.command("/ssservice-help", async interaction => [await interaction.ack(), await interaction.respond("This is the Secret Signal Service bot! The point of this is to earn coins and climb the leaderboard. You get these after sending a signal to someone or receiving a signal. Guessing the signal correctly rewards both the sender and receiver with :siege-coin: (unless the receiver guesses wrong too many times). Since this reacts to messages of users in public channels, and <https://hackclub.slack.com/archives/C0188CY57PZ/p1759957641808149|#meta really doesn't like that>, you have to opt IN for it to work. The bot must also be in the channel you are sending messages in.\nFor more information, check out the readme at https://github.com/lraj23/secret-signal-service"), interaction.payload.user_id === lraj23UserId ? await interaction.respond("Test but only for <@" + lraj23UserId + ">. If you aren't him and you see this message, DM him IMMEDIATELY about this!") : null]);
+commands.help = async interaction => [await interaction.ack(), await interaction.respond("This is the Secret Signal Service bot! The point of this is to earn coins and climb the leaderboard. You get these after sending a signal to someone or receiving a signal. Guessing the signal correctly rewards both the sender and receiver with :siege-coin: (unless the receiver guesses wrong too many times). Since this reacts to messages of users in public channels, and <https://hackclub.slack.com/archives/C0188CY57PZ/p1759957641808149|#meta really doesn't like that>, you have to opt IN for it to work. The bot must also be in the channel you are sending messages in.\nFor more information, check out the readme at https://github.com/lraj23/secret-signal-service"), interaction.body.user_id === lraj23UserId ? await interaction.respond("Test but only for <@" + lraj23UserId + ">. If you aren't him and you see this message, DM him IMMEDIATELY about this!") : null];
+app.command("/ssservice-help", commands.help);
 
 app.message(/secret button/i, async ({ message }) => {
 	await app.client.chat.postEphemeral({
