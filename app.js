@@ -36,24 +36,7 @@ app.message("", async ({ message }) => {
 	}
 	let SSService = getSSService();
 	const userId = message.user;
-	if (!SSService.signalOptedIn.includes(userId)) {
-		if (message.channel === lraj23BotTestingId) await app.client.chat.postEphemeral({
-			channel: lraj23BotTestingId,
-			user: userId,
-			blocks: [
-				{
-					type: "section",
-					text: {
-						type: "mrkdwn",
-						text: "You aren't opted in to Secret Signal Service! Opt in to \"Signals\" with /ssservice-edit-opts"
-					}
-				}
-			],
-			text: "You aren't opted in to Secret Signal Service! Opt in to \"Signals\" with /ssservice-edit-opts",
-			thread_ts: ((message.thread_ts == message.ts) ? null : message.thread_ts)
-		});
-		return;
-	}
+	if (!SSService.signalOptedIn.includes(userId)) return;
 	console.log(message.text);
 	if (message.text.toLowerCase().includes("secret button"))
 		await app.client.reactions.add({
